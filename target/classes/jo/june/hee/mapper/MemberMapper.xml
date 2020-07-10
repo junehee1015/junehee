@@ -1,0 +1,256 @@
+<!DOCTYPE mapper
+    PUBLIC "-//mybatis.org//DTD Mapper 3.0//EN"
+    "http://mybatis.org/dtd/mybatis-3-mapper.dtd">
+
+<mapper namespace="mDao">
+<!-- 로그인 -->
+<select id="user" resultType="jo.june.hee.dto.MemberDto">
+	select mName,mId,mPw,mEmail1,mEmail2,mAdr_num,mAdr1,mAdr2,mPhone1,mPhone2,mPhone3,mTel1,mTel2,mTel3,authority from test_member where mId=#{mId} and mPw=#{mPw}
+</select>
+<!-- 아이디 중복 검사 -->
+<select id="id_overlap" resultType="int">
+	select count(*) from test_member where mId=#{param1}
+</select>
+<!-- 회원가입 -->
+<insert id="mInfo_write" parameterType="jo.june.hee.dto.MemberDto">
+	INSERT INTO test_member 
+	(mname,mid,mpw,memail1,memail2,memail_receive,madr_num,madr1,madr2,mphone1,mphone2,mphone3,msms,mtel1,mtel2,mtel3,myear,mmonth,mdate,mjoin_date,authority)
+	VALUES(
+	#{mName},
+    #{mId},
+    #{mPw},
+    #{mEmail1},
+    #{mEmail2},
+    #{mEmail_receive},
+    #{mAdr_num},
+    #{mAdr1},
+    #{mAdr2},
+    #{mPhone1},
+    #{mPhone2},
+    #{mPhone3},
+    #{mSMS},
+    #{mTel1},
+    <choose>
+    	<when test="mTel2==' '">
+    	' '
+    	</when>
+    	<otherwise>
+	    #{mTel2}
+    	</otherwise>
+    </choose>,
+    <choose>
+    	<when test="mTel3==' '">
+    	' '
+    	</when>
+    	<otherwise>
+	    #{mTel3}
+    	</otherwise>
+    </choose>,
+    #{mYear},
+    #{mMonth},
+    #{mDate},
+    sysdate,
+    0
+)
+</insert>
+<!-- 회원정보수정 -->
+<select id="pw_check" resultType="int">
+	select count(*) from test_member where mPw=#{mPw}
+</select>
+<update id="mUpdate" parameterType="jo.june.hee.dto.MemberDto">
+	update test_member set
+mPw=#{mPw},
+mEmail1=#{mEmail1},
+mEmail2=#{mEmail2},
+mEmail_receive=#{mEmail_receive},
+mAdr_num=#{mAdr_num},
+mAdr1=#{mAdr1},
+mAdr2=#{mAdr2},
+mPhone1=#{mPhone1},
+mPhone2=#{mPhone2},
+mPhone3=#{mPhone3},
+mSMS=#{mSMS},
+mTel1=#{mTel1},
+mTel2=#{mTel2},
+mTel3=#{mTel3}
+where mId=#{mId}
+</update>
+
+
+<!-- 이벤트 목록 -->
+<select id="event_list" resultType="jo.june.hee.dto.EventDto">
+	select * from (
+	select rownum rnum,event_id,eWriter,eTitle,eContent,eStart,eEnd,eFile1,eFile2,eHits from (
+	select * from
+	<choose>
+		<when test="eSearch_opt == 'all'">
+			(select * from test_event where eTitle like '%'||#{eSearch}||'%' or eContent like '%'||#{eSearch}||'%')
+		</when>
+		<when test="eSearch_opt == 'tit'">
+			(select * from test_event where eTitle like '%'||#{eSearch}||'%')
+		</when>
+		<when test="eSearch_opt == 'con'">
+			(select * from test_event where eContent like '%'||#{eSearch}||'%')
+		</when>
+		<otherwise>
+			test_event
+		</otherwise>
+	</choose>
+	order by event_id desc))
+	where rnum &gt;=#{startRow} and rnum &lt;=#{endRow}
+</select>
+<!-- 이벤트 총 게시물 -->
+<select id="eTotalList" resultType="int">
+	select count(*) from
+	<choose>
+		<when test="eSearch_opt == 'all'">
+			(select * from test_event where eTitle like '%'||#{eSearch}||'%' or eContent like '%'||#{eSearch}||'%')
+		</when>
+		<when test="eSearch_opt == 'tit'">
+			(select * from test_event where eTitle like '%'||#{eSearch}||'%')
+		</when>
+		<when test="eSearch_opt == 'con'">
+			(select * from test_event where eContent like '%'||#{eSearch}||'%')
+		</when>
+		<otherwise>
+			test_event
+		</otherwise>
+	</choose>
+</select>
+<!-- 이벤트 내용 -->
+<select id="event_view" resultType="jo.june.hee.dto.EventDto">
+	select * from test_event where event_id=#{event_id}
+</select>
+<!-- 이벤트 조회수 증가 -->
+<update id="eUpHits" parameterType="jo.june.hee.dto.EventDto">
+	update test_event set eHits=eHits+1 where event_id=#{event_id}
+</update>
+<!-- 이벤트 이전글 다음글 -->
+<select id="ePrev"  resultType="jo.june.hee.dto.EventDto">
+	select * from (
+	select rownum rnum,event_id,eWriter,eTitle,eContent,eStart,eEnd,eFile1,eFile2,eHits from (
+	select * from test_event order by event_id desc))
+	where event_id=(select max(event_id) from test_event where event_id &lt; #{event_id})
+</select>
+<select id="eNext"  resultType="jo.june.hee.dto.EventDto">
+	select * from (
+	select rownum rnum,event_id,eWriter,eTitle,eContent,eStart,eEnd,eFile1,eFile2,eHits from (
+	select * from test_event order by event_id desc))
+	where event_id=(select min(event_id) from test_event where event_id &gt; #{event_id})
+</select>
+
+
+<!-- 당첨자 발표 목록 -->
+<select id="prize_list" resultType="jo.june.hee.dto.PrizeDto">
+	select * from(
+	select rownum rnum,prize_id,pWriter,pTitle,pContent,pDate,pFile,pHits from(
+	select * from
+	<choose>
+		<when test="pSearch_opt == 'all'">
+			(select * from test_prize where pTitle like '%'||#{pSearch}||'%' or pContent like '%'||#{pSearch}||'%')
+		</when>
+		<when test="pSearch_opt == 'tit'">
+			(select * from test_prize where pTitle like '%'||#{pSearch}||'%')
+		</when>
+		<when test="pSearch_opt == 'con'">
+			(select * from test_prize where pContent like '%'||#{pSearch}||'%')
+		</when>
+		<otherwise>
+			test_prize
+		</otherwise>
+	</choose>
+	order by prize_id desc))
+	where rnum &gt;= #{startRow} and rnum &lt;= #{endRow}
+</select>
+<!-- 당첨자 발표 총 게시물 -->
+<select id="pTotalList" resultType="int">
+	select count(*) from
+	<choose>
+		<when test="pSearch_opt == 'all'">
+			(select * from test_prize where pTitle like '%'||#{pSearch}||'%' or pContent like '%'||#{pSearch}||'%')
+		</when>
+		<when test="pSearch_opt == 'tit'">
+			(select * from test_prize where pTitle like '%'||#{pSearch}||'%')
+		</when>
+		<when test="pSearch_opt == 'con'">
+			(select * from test_prize where pContent like '%'||#{pSearch}||'%')
+		</when>
+		<otherwise>
+			test_prize
+		</otherwise>
+	</choose>
+</select>
+<!-- 당첨자 발표 내용 -->
+<select id="prize_view" resultType="jo.june.hee.dto.PrizeDto">
+	select * from test_prize where prize_id=#{prize_id}
+</select>
+<!-- 당첨자 발표 조회수 증가 -->
+<update id="pUpHits" parameterType="jo.june.hee.dto.EventDto">
+	update test_prize set pHits=pHits+1 where prize_id=#{prize_id}
+</update>
+<!-- 당첨자 발표 이전글 다음글 -->
+<select id="pPrev" resultType="jo.june.hee.dto.PrizeDto">
+	select * from (
+	select rownum rnum,prize_id,pWriter,pTitle,pContent,pDate,pFile,pHits from (
+	select * from test_prize order by prize_id desc))
+	where prize_id=(select max(prize_id) from test_prize where prize_id &lt; #{prize_id})
+</select>
+<select id="pNext" resultType="jo.june.hee.dto.PrizeDto">
+	select * from (
+	select rownum rnum,prize_id,pWriter,pTitle,pContent,pDate,pFile,pHits from (
+	select * from test_prize order by prize_id desc))
+	where prize_id=(select min(prize_id) from test_prize where prize_id &gt; #{prize_id})
+</select>
+
+
+
+<!-- 댓글 목록 -->
+<select id="rList" resultType="jo.june.hee.dto.ReplyDto">
+	select * from (
+	select rownum rnum,event_id,reply_id,rWriter,rContent,rDate,rPw from (
+	select * from test_reply where event_id = #{event_id} order by reply_id desc))
+	where rnum &gt;= 1 and rnum &lt;=(select count(*) from test_reply)
+</select>
+<!-- 댓글 갯수 -->
+<select id="replyCount" resultType="int">
+	select count(*) from test_reply where event_id=#{event_id}
+</select>
+<!-- 댓글 작성 -->
+<insert id="rWrite" parameterType="jo.june.hee.dto.ReplyDto">
+	INSERT INTO test_reply (event_id,reply_id,rWriter,rContent,rPw)VALUES (
+    #{event_id},
+    test_reply_seq.nextval,
+    #{rWriter},
+    #{rContent},
+    <choose>
+    	<when test="rPw==''">
+    		' '
+    	</when>
+    	<otherwise>
+    		#{rPw}
+    	</otherwise>
+    </choose>
+)
+</insert>
+<!-- 비밀글 -->
+<select id="secret" resultType="jo.june.hee.dto.ReplyDto">
+	select * from test_reply where reply_id=#{param1}
+</select>
+<!-- 댓글 삭제 -->
+<delete id="rDelete" parameterType="jo.june.hee.dto.ReplyDto">
+	delete from test_reply where reply_id=#{param1}
+</delete>
+<!-- 댓글 수정 -->
+<update id="rUpdate" parameterType="jo.june.hee.dto.ReplyDto">
+	update test_reply set rContent=#{rContent},rDate=sysdate,rPw=
+	<choose>
+		<when test="rPw==''">
+			' '
+		</when>
+		<otherwise>
+			#{rPw}
+		</otherwise>
+	</choose>
+	where reply_id=#{reply_id}
+</update>
+</mapper>
